@@ -232,15 +232,15 @@ async function loadMainScreen(token) {
         updateUserInfo();
 
         // Load orgs and initial repos
-        const [orgs, starred, privateRepos] = await Promise.all([
+        const [orgs, starred, userRepos] = await Promise.all([
             GitHubAPI.fetchUserOrgs(token),
             GitHubAPI.fetchStarredRepos(token),
-            GitHubAPI.fetchPrivateRepos(token)
+            GitHubAPI.fetchUserRepos(token)
         ]);
 
         state.userOrgs = orgs;
         state.starredRepos = starred;
-        state.contextRepos = privateRepos;
+        state.contextRepos = userRepos;
 
         populateOrgSelector();
         renderRepos();
@@ -285,7 +285,7 @@ async function onOrgChange() {
     try {
         const token = await Storage.getToken();
         if (state.activeOrg === 'personal') {
-            state.contextRepos = await GitHubAPI.fetchPrivateRepos(token);
+            state.contextRepos = await GitHubAPI.fetchUserRepos(token);
         } else {
             state.contextRepos = await GitHubAPI.fetchOrgRepos(token, state.activeOrg);
         }
@@ -327,10 +327,10 @@ function renderRepos() {
     // 2. Prepare Context (All Repos) List
     let contextList = [];
     if (state.activeOrg === 'personal') {
-        // Merge Starred followed by Private
+        // Merge Starred followed by other repos
         const starredIds = new Set(state.starredRepos.map(r => r.id));
-        const privateNotStarred = state.contextRepos.filter(r => !starredIds.has(r.id));
-        contextList = [...state.starredRepos, ...privateNotStarred];
+        const unstarredRepos = state.contextRepos.filter(r => !starredIds.has(r.id));
+        contextList = [...state.starredRepos, ...unstarredRepos];
     } else {
         // Just org repos, but put starred ones at the top if any
         contextList = [...state.contextRepos].sort((a, b) => {
@@ -524,8 +524,8 @@ function updateTabCounts() {
     let contextCount = 0;
     if (state.activeOrg === 'personal') {
         const starredIds = new Set(state.starredRepos.map(r => r.id));
-        const privateNotStarred = state.contextRepos.filter(r => !starredIds.has(r.id));
-        contextCount = state.starredRepos.length + privateNotStarred.length;
+        const unstarredRepos = state.contextRepos.filter(r => !starredIds.has(r.id));
+        contextCount = state.starredRepos.length + unstarredRepos.length;
     } else {
         contextCount = state.contextRepos.length;
     }
@@ -566,7 +566,7 @@ async function onRefresh() {
             GitHubAPI.fetchStarredRepos(token),
             GitHubAPI.fetchUserOrgs(token),
             state.activeOrg === 'personal'
-                ? GitHubAPI.fetchPrivateRepos(token)
+                ? GitHubAPI.fetchUserRepos(token)
                 : GitHubAPI.fetchOrgRepos(token, state.activeOrg)
         ]);
 

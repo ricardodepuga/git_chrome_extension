@@ -86,12 +86,12 @@ const GitHubAPI = {
     },
 
     /**
-     * Fetch all private repositories for the authenticated user.
+     * Fetch all repositories for the authenticated user.
      * Handles pagination automatically.
      * @param {string} token - GitHub PAT
      * @returns {Promise<Array<{id: number, name: string, fullName: string, url: string, language: string|null, updatedAt: string, isPrivate: boolean, description: string|null, owner: string, ownerAvatar: string}>>}
      */
-    async fetchPrivateRepos(token) {
+    async fetchUserRepos(token) {
         const allRepos = [];
         let page = 1;
         let hasMore = true;
@@ -99,7 +99,7 @@ const GitHubAPI = {
         while (hasMore) {
             const { data, nextUrl } = page === 1
                 ? await this.request(token, '/user/repos', {
-                    type: 'private',
+                    type: 'all',
                     per_page: '100',
                     sort: 'updated',
                     direction: 'desc',
