@@ -61,3 +61,11 @@ Once the connection is successful, the extension will automatically start listin
 - Communication with GitHub is handled entirely via the GitHub REST API (using the local `patch_github_api.js` library).
 - It is built on Google Chrome's Manifest V3.
 - All data (such as the Access Token) is stored securely locally in the user's browser (via `chrome.storage.local`).
+
+### Privacy and Permissions
+
+**Why do we need the `storage` permission?**
+The `storage` permission is strictly required to securely save your GitHub Personal Access Token (PAT) locally within your browser. When you connect your account, your token is saved using the `chrome.storage.local` API. This allows the extension to remember your authentication state, ensuring you don't have to re-enter your private token every time you open the extension popup. This data never leaves your device and is only ever used to authenticate your requests directly with the official GitHub API.
+
+**Host Permissions Justification (`https://api.github.com/*`)**
+The extension requires access to the official GitHub API (`https://api.github.com/*`) to function properly. This host permission allows the extension to fetch your user profile, list your private and organization repositories, and manage your starred projects directly from GitHub's servers. All communication happens securely over HTTPS, and the extension *only* interacts with this specific GitHub API endpoint. No data is ever sent to third-party servers, analytics services, or any other external domains.
