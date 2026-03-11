@@ -89,13 +89,19 @@ const GitHubAPI = {
      * Fetch all repositories for the authenticated user.
      * Handles pagination automatically.
      * @param {string} token - GitHub PAT
+     * @param {string} [sortPref='updated'] - Sort preference: 'updated' or 'alpha'
+     * @param {Function} [onPageLoaded] - Optional callback fired when a page of repos is loaded
      * @returns {Promise<Array<{id: number, name: string, fullName: string, url: string, language: string|null, updatedAt: string, isPrivate: boolean, description: string|null, owner: string, ownerAvatar: string}>>}
      */
-    async fetchUserRepos(token) {
+    async fetchUserRepos(token, sortPref = 'updated', onPageLoaded = null) {
         const allRepos = [];
         let page = 1;
         let savedNextUrl = null;
         let hasMore = true;
+
+        const sortParams = sortPref === 'alpha' 
+            ? { sort: 'full_name', direction: 'asc' }
+            : { sort: 'updated', direction: 'desc' };
 
         while (hasMore) {
             let data, nextUrl;
@@ -103,8 +109,7 @@ const GitHubAPI = {
                 const response = await this.request(token, '/user/repos', {
                     type: 'all',
                     per_page: '100',
-                    sort: 'updated',
-                    direction: 'desc',
+                    ...sortParams,
                     page: page.toString()
                 });
                 data = response.data;
@@ -136,6 +141,10 @@ const GitHubAPI = {
             } else {
                 hasMore = false;
             }
+
+            if (onPageLoaded) {
+                await onPageLoaded({ repos, page, isLastPage: !hasMore });
+            }
         }
 
         return allRepos;
@@ -144,9 +153,10 @@ const GitHubAPI = {
     /**
      * Fetch starred repositories for the authenticated user.
      * @param {string} token - GitHub PAT
+     * @param {Function} [onPageLoaded] - Optional callback
      * @returns {Promise<Array<any>>}
      */
-    async fetchStarredRepos(token) {
+    async fetchStarredRepos(token, onPageLoaded = null) {
         const allRepos = [];
         let page = 1;
         let savedNextUrl = null;
@@ -189,6 +199,10 @@ const GitHubAPI = {
             } else {
                 hasMore = false;
             }
+
+            if (onPageLoaded) {
+                await onPageLoaded({ repos, page, isLastPage: !hasMore });
+            }
         }
 
         return allRepos;
@@ -211,12 +225,16 @@ const GitHubAPI = {
     /**
      * Fetch repositories for a specific organization.
      */
-    async fetchOrgRepos(token, orgLogin) {
+    async fetchOrgRepos(token, orgLogin, sortPref = 'updated', onPageLoaded = null) {
         const allRepos = [];
         let page = 1;
         let savedNextUrl = null;
 
         let hasMore = true;
+
+        const sortParams = sortPref === 'alpha' 
+            ? { sort: 'full_name', direction: 'asc' }
+            : { sort: 'updated', direction: 'desc' };
 
         while (hasMore) {
             let data, nextUrl;
@@ -224,8 +242,7 @@ const GitHubAPI = {
                 const response = await this.request(token, `/orgs/${orgLogin}/repos`, {
                     per_page: '100',
                     type: 'all',
-                    sort: 'updated',
-                    direction: 'desc',
+                    ...sortParams,
                     page: page.toString()
                 });
                 data = response.data;
@@ -256,6 +273,10 @@ const GitHubAPI = {
                 page++;
             } else {
                 hasMore = false;
+            }
+
+            if (onPageLoaded) {
+                await onPageLoaded({ repos, page, isLastPage: !hasMore });
             }
         }
 

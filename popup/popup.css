@@ -500,7 +500,7 @@ code {
 
 .search-icon {
   position: absolute;
-  left: 28px;
+  left: 10px;
   top: 50%;
   transform: translateY(-50%);
   color: var(--text-tertiary);
@@ -509,7 +509,7 @@ code {
 
 #search-input {
   width: 100%;
-  padding: 8px 28px 8px 32px;
+  padding: 8px 36px 8px 32px;
   background: var(--bg-primary);
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
@@ -531,14 +531,14 @@ code {
 
 .search-shortcut {
   position: absolute;
-  right: 10px;
+  right: 12px;
   top: 50%;
   transform: translateY(-50%);
-  padding: 1px 4px;
+  padding: 2px 6px;
   background: var(--bg-tertiary);
   border: 1px solid var(--border-default);
   border-radius: 4px;
-  font-size: 9px;
+  font-size: 10px;
   color: var(--text-tertiary);
   font-family: inherit;
   pointer-events: none;
@@ -937,31 +937,79 @@ code {
   margin-bottom: 12px;
 }
 
-.settings-user {
+.accounts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.account-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  transition: border-color var(--transition-fast);
+  cursor: pointer;
+}
+
+.account-item:hover {
+  border-color: var(--border-default);
+}
+
+.account-item.active {
+  border-color: var(--accent-primary);
+  background: var(--bg-hover);
+}
+
+.account-info-group {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 12px;
-  background: var(--bg-tertiary);
-  border-radius: var(--radius-md);
-  margin-bottom: 12px;
 }
 
-.settings-avatar {
+.account-avatar {
   width: 28px;
   height: 28px;
   border-radius: 50%;
 }
 
-.settings-user strong {
+.account-details strong {
   display: block;
   font-size: 13px;
   line-height: 1.2;
 }
 
-.settings-user span {
+.account-details span {
   font-size: 11px;
   color: var(--text-secondary);
+}
+
+.account-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.active-badge {
+  font-size: 10px;
+  background: var(--accent-glow);
+  color: var(--accent-primary);
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+
+.remove-account-btn {
+  color: var(--danger);
+  opacity: 0.5;
+}
+
+.remove-account-btn:hover {
+  opacity: 1;
+  background: var(--danger-bg);
 }
 
 /* --- No Search Results --- */

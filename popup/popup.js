@@ -38,7 +38,9 @@ let state = {
     user: null,
     searchQuery: '',
     activeTab: 'starred',
-    activeOrg: 'personal'
+    activeOrg: 'personal',
+    isIndexing: false,
+    sortPref: 'updated'
 };
 
 // ===== DOM Elements =====
@@ -87,16 +89,18 @@ function cacheDOMElements() {
     // Settings Modal
     elements.settingsModal = document.getElementById('settings-modal');
     elements.closeSettings = document.getElementById('close-settings');
-    elements.settingsAvatar = document.getElementById('settings-avatar');
-    elements.settingsName = document.getElementById('settings-name');
-    elements.settingsLogin = document.getElementById('settings-login');
-    elements.disconnectBtn = document.getElementById('disconnect-btn');
+    elements.accountsList = document.getElementById('accounts-list');
+    elements.addAccountBtn = document.getElementById('add-account-btn');
+    elements.sortSelect = document.getElementById('sort-select');
 }
 
 // ===== Initialization =====
 async function init() {
     cacheDOMElements();
     bindEvents();
+
+    state.sortPref = await Storage.getSortPreference();
+    elements.sortSelect.value = state.sortPref;
 
     const token = await Storage.getToken();
     if (token) {
@@ -133,7 +137,8 @@ function bindEvents() {
     // Settings modal
     elements.closeSettings.addEventListener('click', () => toggleModal(false));
     document.querySelector('.modal-backdrop')?.addEventListener('click', () => toggleModal(false));
-    elements.disconnectBtn.addEventListener('click', onDisconnect);
+    elements.addAccountBtn.addEventListener('click', onAddAccount);
+    elements.sortSelect.addEventListener('change', onSortChange);
 
     // Error dismiss
     elements.dismissError.addEventListener('click', () => {
@@ -199,8 +204,13 @@ async function onSaveToken() {
         const user = await GitHubAPI.validateToken(token);
         state.user = user;
 
-        // Save the token
-        await Storage.setToken(token);
+        // Save the full account profile
+        await Storage.saveAccount({
+            login: user.login,
+            name: user.name,
+            avatarUrl: user.avatarUrl,
+            token: token
+        });
 
         // Load the main screen
         await loadMainScreen(token);
@@ -232,19 +242,43 @@ async function loadMainScreen(token) {
         updateUserInfo();
 
         // Load orgs and initial repos
-        const [orgs, starred, userRepos] = await Promise.all([
-            GitHubAPI.fetchUserOrgs(token),
-            GitHubAPI.fetchStarredRepos(token),
-            GitHubAPI.fetchUserRepos(token)
+        state.isIndexing = true;
+        updateIndexingUI();
+
+        const [orgs] = await Promise.all([
+            GitHubAPI.fetchUserOrgs(token)
         ]);
 
         state.userOrgs = orgs;
-        state.starredRepos = starred;
-        state.contextRepos = userRepos;
-
         populateOrgSelector();
-        renderRepos();
-        updateTabCounts();
+
+        // Start progressive loading in background for Starred and User Repos
+        state.starredRepos = [];
+        state.contextRepos = [];
+
+        Promise.all([
+            GitHubAPI.fetchStarredRepos(token, async ({ repos }) => {
+                state.starredRepos = [...state.starredRepos, ...repos];
+                renderRepos();
+                updateTabCounts();
+                elements.loadingOverlay.classList.add('hidden'); // Hide main loader once first paints arrive
+            }),
+            GitHubAPI.fetchUserRepos(token, state.sortPref, async ({ repos }) => {
+                const ownedRepos = repos.filter(r => r.owner === state.user.login);
+                state.contextRepos = [...state.contextRepos, ...ownedRepos];
+                renderRepos();
+                updateTabCounts();
+                elements.loadingOverlay.classList.add('hidden'); // Hide main loader once first paints arrive
+            })
+        ]).then(() => {
+            state.isIndexing = false;
+            updateIndexingUI();
+        }).catch(error => {
+            state.isIndexing = false;
+            updateIndexingUI();
+            showError(`Background sync interrupted: ${error.message}`);
+        });
+
     } catch (error) {
         if (error instanceof GitHubAPIError && error.isUnauthorized) {
             // Token is invalid, go back to setup
@@ -281,20 +315,56 @@ function populateOrgSelector() {
 async function onOrgChange() {
     state.activeOrg = elements.orgSelect.value;
     elements.loadingOverlay.classList.remove('hidden');
+    
+    // Scroll to the top of the repository lists immediately
+    elements.starredList.scrollTop = 0;
+    elements.allReposList.scrollTop = 0;
 
     try {
         const token = await Storage.getToken();
+        state.contextRepos = [];
+        state.isIndexing = true;
+        updateIndexingUI();
+
         if (state.activeOrg === 'personal') {
-            state.contextRepos = await GitHubAPI.fetchUserRepos(token);
+            GitHubAPI.fetchUserRepos(token, state.sortPref, async ({ repos }) => {
+                const ownedRepos = repos.filter(r => r.owner === state.user.login);
+                state.contextRepos = [...state.contextRepos, ...ownedRepos];
+                renderRepos();
+                updateTabCounts();
+                elements.loadingOverlay.classList.add('hidden');
+            }).then(() => {
+                state.isIndexing = false;
+                updateIndexingUI();
+            });
         } else {
-            state.contextRepos = await GitHubAPI.fetchOrgRepos(token, state.activeOrg);
+            GitHubAPI.fetchOrgRepos(token, state.activeOrg, state.sortPref, async ({ repos }) => {
+                state.contextRepos = [...state.contextRepos, ...repos];
+                renderRepos();
+                updateTabCounts();
+                elements.loadingOverlay.classList.add('hidden');
+            }).then(() => {
+                state.isIndexing = false;
+                updateIndexingUI();
+            });
         }
-        renderRepos();
-        updateTabCounts();
     } catch (error) {
-        showError(`Failed to load organization repositories: ${error.message}`);
-    } finally {
+        state.isIndexing = false;
+        updateIndexingUI();
         elements.loadingOverlay.classList.add('hidden');
+        showError(`Failed to load organization repositories: ${error.message}`);
+    }
+}
+
+function updateIndexingUI() {
+    if (state.isIndexing) {
+        elements.searchInput.disabled = true;
+        elements.searchInput.placeholder = 'Indexing repositories...';
+        elements.refreshBtn.classList.add('rotating'); // Keep refresh spinning
+    } else {
+        elements.searchInput.disabled = false;
+        elements.searchInput.placeholder = 'Search by name or description...';
+        elements.refreshBtn.classList.remove('rotating');
     }
 }
 
@@ -303,19 +373,91 @@ function updateUserInfo() {
 
     elements.userAvatar.src = state.user.avatarUrl;
     elements.userLogin.textContent = `@${state.user.login}`;
+}
 
-    // Settings
-    elements.settingsAvatar.src = state.user.avatarUrl;
-    elements.settingsName.textContent = state.user.name || state.user.login;
-    elements.settingsLogin.textContent = `@${state.user.login}`;
+async function renderAccountsList() {
+    elements.accountsList.innerHTML = '';
+    const accounts = await Storage.getAccounts();
+    const activeId = await Storage.getActiveAccountId();
+    
+    accounts.forEach(account => {
+        const isActive = account.login === activeId;
+        const div = document.createElement('div');
+        div.className = `account-item ${isActive ? 'active' : ''}`;
+        
+        div.innerHTML = `
+            <div class="account-info-group">
+                <img class="account-avatar" src="${account.avatarUrl || 'https://github.com/identicons/' + account.login + '.png'}" alt="">
+                <div class="account-details">
+                    <strong>${account.name || account.login}</strong>
+                    <span>@${account.login}</span>
+                </div>
+            </div>
+            <div class="account-actions">
+                ${isActive ? '<span class="active-badge">Active</span>' : ''}
+                <button class="icon-btn remove-account-btn" title="Remove account" data-login="${account.login}">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                </button>
+            </div>
+        `;
+        
+        // Handle Switch
+        div.addEventListener('click', async (e) => {
+            if (e.target.closest('.remove-account-btn')) return; // Ignore if clicking remove
+            if (isActive) return;
+            
+            await Storage.setActiveAccount(account.login);
+            toggleModal(false);
+            window.location.reload(); // Reload extension to fetch context for new token
+        });
+        
+        // Handle Remove
+        const removeBtn = div.querySelector('.remove-account-btn');
+        removeBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            await Storage.removeAccount(account.login);
+            
+            const updatedAccounts = await Storage.getAccounts();
+            if (updatedAccounts.length === 0) {
+                // Last account was removed
+                state = { starredRepos: [], contextRepos: [], userOrgs: [], user: null, searchQuery: '', activeTab: 'starred', activeOrg: 'personal', isIndexing: false };
+                toggleModal(false);
+                showScreen('setup');
+                elements.patInput.value = '';
+                elements.setupError.classList.add('hidden');
+            } else {
+                // More accounts left, refresh modal and potentially context
+                const newActive = await Storage.getActiveAccountId();
+                if (isActive && newActive) {
+                    toggleModal(false);
+                    window.location.reload(); 
+                } else {
+                    renderAccountsList();
+                }
+            }
+        });
+        
+        elements.accountsList.appendChild(div);
+    });
 }
 
 // ===== Rendering =====
 function renderRepos() {
     const query = state.searchQuery.toLowerCase();
 
+    // Sort starred repos locally since API doesn't support alphabetical natively
+    let sortedStarred = [...state.starredRepos];
+    if (state.sortPref === 'alpha') {
+        sortedStarred.sort((a, b) => a.fullName.localeCompare(b.fullName));
+    } else {
+        sortedStarred.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+    }
+
     // 1. Prepare Starred List
-    let filteredStarred = state.starredRepos;
+    let filteredStarred = sortedStarred;
     if (query) {
         filteredStarred = filteredStarred.filter(repo =>
             repo.name.toLowerCase().includes(query) ||
@@ -328,14 +470,14 @@ function renderRepos() {
     let contextList = [];
     if (state.activeOrg === 'personal') {
         // Merge Starred followed by other repos
-        const starredIds = new Set(state.starredRepos.map(r => r.id));
+        const starredIds = new Set(sortedStarred.map(r => r.id));
         const unstarredRepos = state.contextRepos.filter(r => !starredIds.has(r.id));
-        contextList = [...state.starredRepos, ...unstarredRepos];
+        contextList = [...sortedStarred, ...unstarredRepos];
     } else {
         // Just org repos, but put starred ones at the top if any
         contextList = [...state.contextRepos].sort((a, b) => {
-            const aStar = state.starredRepos.some(r => r.id === a.id);
-            const bStar = state.starredRepos.some(r => r.id === b.id);
+            const aStar = sortedStarred.some(r => r.id === a.id);
+            const bStar = sortedStarred.some(r => r.id === b.id);
             if (aStar && !bStar) return -1;
             if (!aStar && bStar) return 1;
             return 0;
@@ -556,6 +698,16 @@ function onSearch() {
     renderRepos();
 }
 
+// ===== Sort =====
+async function onSortChange() {
+    state.sortPref = elements.sortSelect.value;
+    await Storage.setSortPreference(state.sortPref);
+    
+    // We already have starred repos, which we sort locally in renderRepos().
+    // For context repos, we re-fetch them based on the new API sorting parameter.
+    await onOrgChange(); 
+}
+
 // ===== Refresh =====
 async function onRefresh() {
     const btn = elements.refreshBtn;
@@ -571,8 +723,8 @@ async function onRefresh() {
             GitHubAPI.fetchStarredRepos(token),
             GitHubAPI.fetchUserOrgs(token),
             state.activeOrg === 'personal'
-                ? GitHubAPI.fetchUserRepos(token)
-                : GitHubAPI.fetchOrgRepos(token, state.activeOrg)
+                ? GitHubAPI.fetchUserRepos(token, state.sortPref)
+                : GitHubAPI.fetchOrgRepos(token, state.activeOrg, state.sortPref)
         ]);
 
         state.starredRepos = starred;
@@ -591,16 +743,17 @@ async function onRefresh() {
 
 // ===== Settings =====
 function toggleModal(show) {
+    if (show) {
+        renderAccountsList();
+    }
     elements.settingsModal.classList.toggle('hidden', !show);
 }
 
-async function onDisconnect() {
-    await Storage.removeToken();
-    state = { starredRepos: [], contextRepos: [], userOrgs: [], user: null, searchQuery: '', activeTab: 'starred', activeOrg: 'personal' };
+function onAddAccount() {
     toggleModal(false);
-    showScreen('setup');
     elements.patInput.value = '';
     elements.setupError.classList.add('hidden');
+    showScreen('setup');
 }
 
 // ===== Error Handling =====
