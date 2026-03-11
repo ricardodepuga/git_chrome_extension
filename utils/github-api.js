@@ -95,6 +95,7 @@ const GitHubAPI = {
         const allRepos = [];
         let page = 1;
         let savedNextUrl = null;
+        let hasMore = true;
 
         while (hasMore) {
             let data, nextUrl;
