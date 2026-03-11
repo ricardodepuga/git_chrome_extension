@@ -619,11 +619,8 @@ async function toggleStar(repo, btnElement) {
 
     try {
         await GitHubAPI.toggleStar(token, repo.fullName, isCurrentlyStarred);
-        // Sync full state in the background to ensure consistency
-        const freshStarred = await GitHubAPI.fetchStarredRepos(token);
-        state.starredRepos = freshStarred;
-        renderRepos();
-        updateTabCounts();
+        // We rely on optimistic UI updates here because fetching the entire 
+        // starred list over the network on every click causes race conditions.
     } catch (error) {
         // Revert optimistic update only on error
         showError(`Failed to update star: ${error.message}`);
