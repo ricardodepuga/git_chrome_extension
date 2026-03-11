@@ -94,18 +94,26 @@ const GitHubAPI = {
     async fetchUserRepos(token) {
         const allRepos = [];
         let page = 1;
-        let hasMore = true;
+        let savedNextUrl = null;
 
         while (hasMore) {
-            const { data, nextUrl } = page === 1
-                ? await this.request(token, '/user/repos', {
+            let data, nextUrl;
+            if (page === 1) {
+                const response = await this.request(token, '/user/repos', {
                     type: 'all',
                     per_page: '100',
                     sort: 'updated',
                     direction: 'desc',
                     page: page.toString()
-                })
-                : await this.requestFullUrl(token, nextUrl);
+                });
+                data = response.data;
+                nextUrl = response.nextUrl;
+            } else {
+                const response = await this.requestFullUrl(token, savedNextUrl);
+                data = response.data;
+                nextUrl = response.nextUrl;
+            }
+            savedNextUrl = nextUrl;
 
             const repos = data.map(repo => ({
                 id: repo.id,
@@ -122,7 +130,7 @@ const GitHubAPI = {
 
             allRepos.push(...repos);
 
-            if (nextUrl && data.length === 100) {
+            if (savedNextUrl && data && data.length === 100) {
                 page++;
             } else {
                 hasMore = false;
@@ -140,15 +148,25 @@ const GitHubAPI = {
     async fetchStarredRepos(token) {
         const allRepos = [];
         let page = 1;
+        let savedNextUrl = null;
+
         let hasMore = true;
 
         while (hasMore) {
-            const { data, nextUrl } = page === 1
-                ? await this.request(token, '/user/starred', {
+            let data, nextUrl;
+            if (page === 1) {
+                const response = await this.request(token, '/user/starred', {
                     per_page: '100',
                     page: page.toString()
-                })
-                : await this.requestFullUrl(token, nextUrl);
+                });
+                data = response.data;
+                nextUrl = response.nextUrl;
+            } else {
+                const response = await this.requestFullUrl(token, savedNextUrl);
+                data = response.data;
+                nextUrl = response.nextUrl;
+            }
+            savedNextUrl = nextUrl;
 
             const repos = data.map(repo => ({
                 id: repo.id,
@@ -165,7 +183,7 @@ const GitHubAPI = {
 
             allRepos.push(...repos);
 
-            if (nextUrl && data.length === 100) {
+            if (savedNextUrl && data && data.length === 100) {
                 page++;
             } else {
                 hasMore = false;
@@ -195,18 +213,28 @@ const GitHubAPI = {
     async fetchOrgRepos(token, orgLogin) {
         const allRepos = [];
         let page = 1;
+        let savedNextUrl = null;
+
         let hasMore = true;
 
         while (hasMore) {
-            const { data, nextUrl } = page === 1
-                ? await this.request(token, `/orgs/${orgLogin}/repos`, {
+            let data, nextUrl;
+            if (page === 1) {
+                const response = await this.request(token, `/orgs/${orgLogin}/repos`, {
                     per_page: '100',
                     type: 'all',
                     sort: 'updated',
                     direction: 'desc',
                     page: page.toString()
-                })
-                : await this.requestFullUrl(token, nextUrl);
+                });
+                data = response.data;
+                nextUrl = response.nextUrl;
+            } else {
+                const response = await this.requestFullUrl(token, savedNextUrl);
+                data = response.data;
+                nextUrl = response.nextUrl;
+            }
+            savedNextUrl = nextUrl;
 
             const repos = data.map(repo => ({
                 id: repo.id,
@@ -223,7 +251,7 @@ const GitHubAPI = {
 
             allRepos.push(...repos);
 
-            if (nextUrl && data.length === 100) {
+            if (savedNextUrl && data && data.length === 100) {
                 page++;
             } else {
                 hasMore = false;

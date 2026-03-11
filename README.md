@@ -46,6 +46,14 @@ You can choose between a **Classic Token** or a **Fine-grained Token** (recommen
 7. Scroll to the bottom and click **Generate token**.
 8. **Copy the generated token** and save it in a secure location.
 
+### Troubleshooting: SAML SSO Error
+If you receive the error `"Resource protected by organization SAML enforcement. You must grant your Personal Access token access to this organization"` when switching organizations:
+1. Go to your [GitHub Tokens settings](https://github.com/settings/tokens).
+2. Find the token you are using for the extension.
+3. Click the **Configure SSO** drop-down menu next to the token.
+4. Click **Authorize** next to the organization you want to access.
+*(Note: Fine-grained tokens handle this during creation when you select the Resource owner).*
+
 ### 2. Configure the Extension
 
 1. Install the extension in Google Chrome.
