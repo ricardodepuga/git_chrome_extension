@@ -467,25 +467,7 @@ function renderRepos() {
     }
 
     // 2. Prepare Context (All Repos) List
-    let contextList = [];
-    if (state.activeOrg === 'personal') {
-        // Merge Starred followed by other repos
-        const starredIds = new Set(sortedStarred.map(r => r.id));
-        const unstarredRepos = state.contextRepos.filter(r => !starredIds.has(r.id));
-        contextList = [...sortedStarred, ...unstarredRepos];
-    } else {
-        // Just org repos, but put starred ones at the top if any
-        contextList = [...state.contextRepos].sort((a, b) => {
-            const aStar = sortedStarred.some(r => r.id === a.id);
-            const bStar = sortedStarred.some(r => r.id === b.id);
-            if (aStar && !bStar) return -1;
-            if (!aStar && bStar) return 1;
-            return 0;
-        });
-
-        // Ensure all public/private organization repos are shown even if they are not starred. 
-        // Note: The contextRepos parameter already fetches ALL organization repos via the API since we pass type: 'all'
-    }
+    let contextList = state.contextRepos;
 
     let filteredContext = contextList;
     if (query) {
@@ -663,16 +645,7 @@ function switchTab(tabName) {
 
 function updateTabCounts() {
     const starredCount = state.starredRepos.length;
-
-    // Calculate context count based on what's displayed in the 'All' tab
-    let contextCount = 0;
-    if (state.activeOrg === 'personal') {
-        const starredIds = new Set(state.starredRepos.map(r => r.id));
-        const unstarredRepos = state.contextRepos.filter(r => !starredIds.has(r.id));
-        contextCount = state.starredRepos.length + unstarredRepos.length;
-    } else {
-        contextCount = state.contextRepos.length;
-    }
+    const contextCount = state.contextRepos.length;
 
     // Update or create count badges
     updateTabBadge(elements.starredTab, starredCount);
