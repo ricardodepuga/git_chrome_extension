@@ -1,0 +1,44 @@
+name: Auto-increment Version
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  bump-version:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Increment manifest.json version
+        run: |
+          node -e "
+            const fs = require('fs');
+            const data = JSON.parse(fs.readFileSync('manifest.json', 'utf8'));
+            const parts = data.version.split('.');
+            parts[parts.length - 1] = parseInt(parts[parts.length - 1]) + 1;
+            data.version = parts.join('.');
+            fs.writeFileSync('manifest.json', JSON.stringify(data, null, 2) + '\n');
+            console.log('Bumped version to ' + data.version);
+          "
+
+      - name: Commit and Push changes
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add manifest.json
+          
+          # Only commit if there are changes. [skip ci] prevents infinite loop triggers.
+          git diff --quiet && git diff --staged --quiet || (git commit -m "chore: auto-bump version in manifest.json [skip ci]" && git push)
