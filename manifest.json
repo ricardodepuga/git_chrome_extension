@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Git Repos Manager",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "Quickly browse GitHub repositories and manage your favorites for fast navigation.",
   "permissions": [
     "storage"
