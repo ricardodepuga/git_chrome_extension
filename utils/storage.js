@@ -1,5 +1,5 @@
 /**
- * Storage utilities for the Git Repos Manager extension.
+ * Storage utilities for the Git Repos Browser extension.
  * Uses chrome.storage.local for the PAT and chrome.storage.sync for favorites.
  */
 

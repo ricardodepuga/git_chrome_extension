@@ -1,5 +1,5 @@
 /**
- * GitHub API wrapper for the Git Repos Manager extension.
+ * GitHub API wrapper for the Git Repos Browser extension.
  * Handles fetching private repositories with pagination.
  */
 

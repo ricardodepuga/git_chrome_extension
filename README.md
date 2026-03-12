@@ -1,4 +1,4 @@
-# Git Repos Manager
+# Git Repos Browser
 
 A Chrome extension that allows you to quickly browse your GitHub repositories (personal or from organizations) and manage your favorites in a fast and intuitive way.
 
@@ -24,7 +24,7 @@ You can choose between a **Classic Token** or a **Fine-grained Token** (recommen
 2. Go to **Settings** > **Developer settings** (located at the bottom of the left sidebar).
 3. In the sidebar, click on **Personal access tokens** and then choose **Fine-grained tokens**.
 4. Click on **Generate new token**.
-5. Give the token a name (e.g., *Git Repos Manager*).
+5. Give the token a name (e.g., *Git Repos Browser*).
 6. Provide an expiration date of your choice.
 7. Under **Resource owner**, select the account or organization you want to grant access to.
 8. Under **Repository access**, select **All repositories** (so the extension can list them).
@@ -41,7 +41,7 @@ You can choose between a **Classic Token** or a **Fine-grained Token** (recommen
 2. Go to **Settings** > **Developer settings**.
 3. In the sidebar, click on **Personal access tokens** and then choose **Tokens (classic)**.
 4. Click on **Generate new token** > **Generate new token (classic)**.
-5. Give the token a name (e.g., *Git Repos Manager Classic*).
+5. Give the token a name (e.g., *Git Repos Browser Classic*).
 6. Under **scopes (permissions)**, you must check the **`repo`** option (Full control of private repositories). This permission covers what is necessary to view your private and organization repositories, as well as allowing you to add and remove stars.
 7. Scroll to the bottom and click **Generate token**.
 8. **Copy the generated token** and save it in a secure location.

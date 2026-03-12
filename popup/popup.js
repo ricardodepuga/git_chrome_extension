@@ -1,5 +1,5 @@
 /**
- * Git Repos Manager — Popup main logic
+ * Git Repos Browser — Popup main logic
  * Handles UI interactions, repo loading, favorites, and search.
  */
 
