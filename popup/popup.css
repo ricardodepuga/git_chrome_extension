@@ -251,6 +251,21 @@ code {
   font-size: 11px;
 }
 
+/* --- OAuth Device Code --- */
+.device-code-box {
+  background: var(--bg-primary);
+  border: 1px dashed var(--border-accent);
+  color: var(--text-primary);
+  font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  padding: 12px;
+  border-radius: var(--radius-md);
+  margin-bottom: 16px;
+  text-align: center;
+}
+
 /* --- Buttons --- */
 .btn {
   display: inline-flex;

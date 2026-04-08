@@ -24,36 +24,74 @@
       </div>
       <h1 class="setup-title">Git Repos Browser</h1>
       <p class="setup-subtitle">Connect your GitHub account to get started</p>
-      <div class="input-group">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-          <label for="pat-input" style="margin-bottom: 0;">Personal Access Token</label>
-          <a href="https://github.com/settings/tokens" id="token-link-top"
-            style="font-size: 11px; text-transform: none; letter-spacing: normal; font-weight: 500; cursor: pointer;">Get
-            token</a>
-        </div>
-        <div class="input-wrapper">
-          <input type="password" id="pat-input" placeholder="ghp_xxxxxxxxxxxx" autocomplete="off">
-          <button id="toggle-visibility" class="icon-btn" title="Show/Hide token">
-            <svg class="eye-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-              stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-              <circle cx="12" cy="12" r="3" />
-            </svg>
-          </button>
-        </div>
-        <p class="input-hint">
-          Generate a token at
-          <a href="https://github.com/settings/tokens" id="token-link">GitHub Settings</a>
-          with <code>repo</code> scope
-        </p>
+      
+      <!-- OAuth Login (Primary) -->
+      <div id="oauth-flow-initial" style="width: 100%; margin-bottom: 16px;">
+        <button id="login-github-btn" class="btn btn-primary">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="margin-right: 4px;"><path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.379.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.578.688.48C19.138 20.161 22 16.416 22 12c0-5.523-4.477-10-10-10z"/></svg>
+          Log in with GitHub
+        </button>
       </div>
-      <button id="save-token-btn" class="btn btn-primary" disabled>
-        <span class="btn-text">Connect</span>
-        <span class="btn-loader hidden">
-          <span class="spinner"></span>
-        </span>
+
+      <!-- OAuth Pending State -->
+      <div id="oauth-flow-pending" class="hidden" style="width: 100%; margin-bottom: 16px; background: var(--bg-secondary); border: 1px solid var(--border-default); border-radius: var(--radius-md); padding: 16px;">
+        <p style="font-size: 13px; font-weight: 500; margin-bottom: 10px; color: var(--text-secondary);">Your authorization code:</p>
+        <div id="device-user-code" class="device-code-box">XXXX-XXXX</div>
+        <button id="copy-open-github" class="btn btn-primary" style="margin-bottom: 12px; font-size: 12px;">
+          Copy Code & Open GitHub
+        </button>
+        <div style="display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 11px; color: var(--text-tertiary);">
+          <span class="spinner" style="width: 12px; height: 12px; border-width: 1.5px; opacity: 0.7;"></span>
+          Waiting for authorization...
+        </div>
+      </div>
+
+      <!-- Divider -->
+      <div id="setup-divider" class="divider" style="display: flex; align-items: center; width: 100%; margin: 8px 0 16px;">
+        <div style="flex: 1; height: 1px; background: var(--border-default);"></div>
+        <span style="padding: 0 10px; font-size: 11px; color: var(--text-tertiary);">OR</span>
+        <div style="flex: 1; height: 1px; background: var(--border-default);"></div>
+      </div>
+
+      <!-- Advanced PAT Toggle -->
+      <button id="toggle-pat-btn" class="btn" style="background: transparent; color: var(--text-secondary); border: 1px solid var(--border-default);">
+        Use Personal Access Token
       </button>
-      <div id="setup-error" class="error-message hidden"></div>
+
+      <!-- PAT Flow (Hidden by default) -->
+      <div id="pat-flow" class="hidden" style="width: 100%; margin-top: 16px;">
+        <div class="input-group">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <label for="pat-input" style="margin-bottom: 0;">Personal Access Token</label>
+            <a href="https://github.com/settings/tokens" id="token-link-top"
+              style="font-size: 11px; text-transform: none; letter-spacing: normal; font-weight: 500; cursor: pointer;">Get
+              token</a>
+          </div>
+          <div class="input-wrapper">
+            <input type="password" id="pat-input" placeholder="ghp_xxxxxxxxxxxx" autocomplete="off">
+            <button id="toggle-visibility" class="icon-btn" title="Show/Hide token">
+              <svg class="eye-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+            </button>
+          </div>
+          <p class="input-hint">
+            Generate a token at
+            <a href="https://github.com/settings/tokens" id="token-link">GitHub Settings</a>
+            with <code>repo</code> scope
+          </p>
+        </div>
+        <button id="save-token-btn" class="btn btn-primary" disabled>
+          <span class="btn-text">Connect token</span>
+          <span class="btn-loader hidden">
+            <span class="spinner"></span>
+          </span>
+        </button>
+      </div>
+
+      <div id="setup-error" class="error-message hidden" style="width: 100%;"></div>
     </div>
   </div>
 

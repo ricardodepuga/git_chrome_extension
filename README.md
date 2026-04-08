@@ -12,54 +12,33 @@ A Chrome extension that allows you to quickly browse your GitHub repositories (p
 
 ## 🚀 How to Install and Configure
 
-For the extension to work properly, you need to authenticate with your GitHub account using a **Personal Access Token (PAT)**.
+For the extension to work properly, you need to authenticate with your GitHub account. We support two methods: **Login with GitHub (Device Flow)** as the primary, and **Personal Access Token (PAT)** as a fallback.
 
-### 1. Create a Personal Access Token on GitHub
+### Option A: Login with GitHub (Recommended)
 
-You can choose between a **Classic Token** or a **Fine-grained Token** (recommended for better security).
+This is the easiest and most secure method, utilizing GitHub's **Device Flow** to skip the manual creation of tokens.
 
-#### Option A: Fine-grained Token (Recommended)
+1. Keep the extension's setup window open.
+2. Click **"Log in with GitHub"**. 
+3. The extension will generate and show you an 8-character **User Code**.
+4. Click the button to copy the code and open GitHub's authorization page in a new tab.
+5. Paste the code, approve the extension in GitHub's window, and return! The extension will automatically detect that you have logged in.
+*(Note: Since you must configure your OAuth Client ID within the codebase before running `utils/config.js`, this functionality requires the extension owner to set up the `OAUTH_CLIENT_ID` before distributing).*
 
-1. Log in to your [GitHub](https://github.com/) account.
-2. Go to **Settings** > **Developer settings** (located at the bottom of the left sidebar).
-3. In the sidebar, click on **Personal access tokens** and then choose **Fine-grained tokens**.
-4. Click on **Generate new token**.
-5. Give the token a name (e.g., *Git Repos Browser*).
-6. Provide an expiration date of your choice.
-7. Under **Resource owner**, select the account or organization you want to grant access to.
-8. Under **Repository access**, select **All repositories** (so the extension can list them).
-9. Under **Permissions**, expand the **Repository permissions** section and grant the following access:
-   - **Contents:** Read-only (required to list your repositories)
-   - **Metadata:** Read-only (required to get repository details)
-   - **Starring:** Read and Write (required to view your starred repos and toggle stars via the extension)
-10. Scroll to the bottom and click **Generate token**.
-11. **Copy the generated token** and save it in a secure location.
+### Option B: Personal Access Token (Advanced)
 
-#### Option B: Classic Token
+If you prefer more granular control or are experiencing issues with the Oauth login, you can provide a PAT.
 
 1. Log in to your [GitHub](https://github.com/) account.
-2. Go to **Settings** > **Developer settings**.
-3. In the sidebar, click on **Personal access tokens** and then choose **Tokens (classic)**.
-4. Click on **Generate new token** > **Generate new token (classic)**.
-5. Give the token a name (e.g., *Git Repos Browser Classic*).
-6. Under **scopes (permissions)**, you must check the **`repo`** option (Full control of private repositories). This permission covers what is necessary to view your private and organization repositories, as well as allowing you to add and remove stars.
-7. Scroll to the bottom and click **Generate token**.
-8. **Copy the generated token** and save it in a secure location.
+2. Go to **Settings** > **Developer settings** > **Personal access tokens** (either Fine-grained or Classic).
+3. If Classic, check the **`repo`** scope. If Fine-grained, ensure **Contents**, **Metadata**, and **Starring** (Read & Write) access.
+4. Open the extension, click **"Advanced: Use Personal Access Token"**.
+5. Paste the token and click **Connect**.
 
 ### Troubleshooting: SAML SSO Error
-If you receive the error `"Resource protected by organization SAML enforcement. You must grant your Personal Access token access to this organization"` when switching organizations:
+If you receive the error `"Resource protected by organization SAML enforcement"` when switching organizations using a PAT:
 1. Go to your [GitHub Tokens settings](https://github.com/settings/tokens).
-2. Find the token you are using for the extension.
-3. Click the **Configure SSO** drop-down menu next to the token.
-4. Click **Authorize** next to the organization you want to access.
-*(Note: Fine-grained tokens handle this during creation when you select the Resource owner).*
-
-### 2. Configure the Extension
-
-1. Install the extension in Google Chrome.
-2. Pin the extension and click its icon in the top right corner of the browser.
-3. In the setup screen that appears, enter your **Personal Access Token** in the indicated field.
-4. Click the **Connect** button.
+2. Click the **Configure SSO** drop-down menu next to the token and click **Authorize**.
 
 Once the connection is successful, the extension will automatically start listing your repositories and organizations!
 

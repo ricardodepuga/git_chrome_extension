@@ -5,6 +5,8 @@
 
 import Storage from '../utils/storage.js';
 import { GitHubAPI, GitHubAPIError } from '../utils/github-api.js';
+import { CONFIG } from '../utils/config.js';
+import { OAuthDeviceFlow } from '../utils/oauth.js';
 
 // ===== Language Colors Map =====
 const LANGUAGE_COLORS = {
@@ -59,6 +61,16 @@ function cacheDOMElements() {
     elements.tokenLink = document.getElementById('token-link');
     elements.tokenLinkTop = document.getElementById('token-link-top');
 
+    // OAuth specific
+    elements.oauthInitial = document.getElementById('oauth-flow-initial');
+    elements.oauthPending = document.getElementById('oauth-flow-pending');
+    elements.loginGithubBtn = document.getElementById('login-github-btn');
+    elements.deviceUserCode = document.getElementById('device-user-code');
+    elements.copyOpenGithubBtn = document.getElementById('copy-open-github');
+    elements.togglePatBtn = document.getElementById('toggle-pat-btn');
+    elements.patFlow = document.getElementById('pat-flow');
+    elements.setupDivider = document.getElementById('setup-divider');
+
     // Header
     elements.userAvatar = document.getElementById('user-avatar');
     elements.userLogin = document.getElementById('user-login');
@@ -106,7 +118,15 @@ async function init() {
     if (token) {
         await loadMainScreen(token);
     } else {
-        showScreen('setup');
+        const pendingSession = await Storage.getPendingOAuth();
+        if (pendingSession && pendingSession.expiresAt > Date.now()) {
+            showScreen('setup');
+            showOAuthPendingState(pendingSession);
+            resumeOAuthPolling(pendingSession);
+        } else {
+            await Storage.clearPendingOAuth();
+            showScreen('setup');
+        }
     }
 }
 
@@ -120,6 +140,9 @@ function bindEvents() {
     if (elements.tokenLinkTop) {
         elements.tokenLinkTop.addEventListener('click', onTokenLinkClick);
     }
+    elements.togglePatBtn.addEventListener('click', onTogglePatFlow);
+    elements.loginGithubBtn.addEventListener('click', onStartOAuthLogin);
+    elements.copyOpenGithubBtn.addEventListener('click', onCopyOpenGithub);
 
     // Header events
     elements.refreshBtn.addEventListener('click', onRefresh);
@@ -164,7 +187,7 @@ function showScreen(screen) {
 
     if (screen === 'setup') {
         elements.setupScreen.classList.remove('hidden');
-        setTimeout(() => elements.patInput.focus(), 100);
+        setTimeout(() => elements.patInput?.focus(), 100);
     } else {
         elements.mainScreen.classList.remove('hidden');
     }
@@ -185,6 +208,142 @@ function onToggleVisibility() {
 function onTokenLinkClick(e) {
     e.preventDefault();
     chrome.tabs.create({ url: 'https://github.com/settings/tokens' });
+}
+
+function onTogglePatFlow() {
+    elements.togglePatBtn.classList.add('hidden');
+    elements.setupDivider.classList.add('hidden');
+    elements.patFlow.classList.remove('hidden');
+    setTimeout(() => elements.patInput.focus(), 100);
+}
+
+async function onStartOAuthLogin() {
+    const btn = elements.loginGithubBtn;
+    const originalText = btn.innerHTML;
+    btn.innerHTML = `<span class="spinner" style="width: 14px; height: 14px;"></span>`;
+    btn.disabled = true;
+
+    try {
+        const deviceData = await OAuthDeviceFlow.requestDeviceCode(CONFIG.OAUTH_CLIENT_ID);
+        const session = {
+            deviceCode: deviceData.device_code,
+            userCode: deviceData.user_code,
+            verificationUri: deviceData.verification_uri,
+            expiresAt: Date.now() + (deviceData.expires_in * 1000),
+            interval: deviceData.interval
+        };
+
+        await Storage.savePendingOAuth(session);
+        showOAuthPendingState(session);
+        resumeOAuthPolling(session);
+    } catch (error) {
+        elements.setupError.classList.remove('hidden');
+        elements.setupError.textContent = `GitHub Login failed: ${error.message}`;
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
+}
+
+function showOAuthPendingState(session) {
+    elements.oauthInitial.classList.add('hidden');
+    elements.patFlow.classList.add('hidden');
+    elements.togglePatBtn.classList.add('hidden');
+    elements.setupDivider.classList.add('hidden');
+
+    elements.deviceUserCode.textContent = session.userCode;
+    elements.oauthPending.classList.remove('hidden');
+
+    elements.copyOpenGithubBtn.dataset.userCode = session.userCode;
+    elements.copyOpenGithubBtn.dataset.verificationUri = session.verificationUri;
+}
+
+async function onCopyOpenGithub(e) {
+    const btn = e.currentTarget;
+    const code = btn.dataset.userCode;
+    const uri = btn.dataset.verificationUri;
+    
+    try {
+        await navigator.clipboard.writeText(code);
+        btn.textContent = 'Copied! Opening GitHub...';
+    } catch (err) {
+        console.error('Clipboard failed', err);
+    }
+
+    setTimeout(() => {
+        chrome.tabs.create({ url: uri });
+        btn.textContent = 'Copy Code & Open GitHub';
+    }, 1000);
+}
+
+let oauthPollTimer = null;
+
+async function resumeOAuthPolling(session) {
+    if (oauthPollTimer) clearTimeout(oauthPollTimer);
+
+    const poll = async () => {
+        if (Date.now() > session.expiresAt) {
+            await Storage.clearPendingOAuth();
+            elements.setupError.classList.remove('hidden');
+            elements.setupError.textContent = 'Login session expired. Please try again.';
+            elements.oauthPending.classList.add('hidden');
+            elements.oauthInitial.classList.remove('hidden');
+            elements.loginGithubBtn.textContent = 'Log in with GitHub';
+            elements.loginGithubBtn.disabled = false;
+            return;
+        }
+
+        try {
+            const result = await OAuthDeviceFlow.pollAccessToken(CONFIG.OAUTH_CLIENT_ID, session.deviceCode);
+            if (result.isPending) {
+                if (result.data && result.data.error === 'slow_down') {
+                    session.interval += 5;
+                    await Storage.savePendingOAuth(session);
+                }
+                oauthPollTimer = setTimeout(poll, session.interval * 1000);
+            } else if (result.token) {
+                handleSuccessfulToken(result.token);
+            }
+        } catch (error) {
+            await Storage.clearPendingOAuth();
+            elements.setupError.classList.remove('hidden');
+            elements.setupError.textContent = `Authorization failed: ${error.message}`;
+            elements.oauthPending.classList.add('hidden');
+            elements.oauthInitial.classList.remove('hidden');
+            elements.loginGithubBtn.disabled = false;
+            elements.loginGithubBtn.textContent = 'Log in with GitHub';
+        }
+    };
+
+    oauthPollTimer = setTimeout(poll, session.interval * 1000);
+}
+
+async function handleSuccessfulToken(token) {
+    elements.setupError.classList.add('hidden');
+    elements.oauthPending.style.opacity = '0.5';
+
+    try {
+        const user = await GitHubAPI.validateToken(token);
+        state.user = user;
+
+        await Storage.saveAccount({
+            login: user.login,
+            name: user.name,
+            avatarUrl: user.avatarUrl,
+            token: token
+        });
+
+        await Storage.clearPendingOAuth();
+        await loadMainScreen(token);
+    } catch (error) {
+        elements.setupError.classList.remove('hidden');
+        elements.setupError.textContent = `Connection failed: ${error.message}`;
+        elements.oauthPending.classList.add('hidden');
+        elements.oauthPending.style.opacity = '1';
+        elements.oauthInitial.classList.remove('hidden');
+        elements.loginGithubBtn.disabled = false;
+        elements.loginGithubBtn.textContent = 'Log in with GitHub';
+        await Storage.clearPendingOAuth();
+    }
 }
 
 async function onSaveToken() {
@@ -428,6 +587,12 @@ async function renderAccountsList() {
                 showScreen('setup');
                 elements.patInput.value = '';
                 elements.setupError.classList.add('hidden');
+                
+                // Reset setup flow visual state
+                elements.patFlow?.classList.add('hidden');
+                elements.togglePatBtn?.classList.remove('hidden');
+                elements.setupDivider?.classList.remove('hidden');
+                elements.oauthInitial?.classList.remove('hidden');
             } else {
                 // More accounts left, refresh modal and potentially context
                 const newActive = await Storage.getActiveAccountId();
@@ -723,6 +888,14 @@ function onAddAccount() {
     toggleModal(false);
     elements.patInput.value = '';
     elements.setupError.classList.add('hidden');
+    
+    // Reset setup flow visual state
+    elements.patFlow?.classList.add('hidden');
+    elements.togglePatBtn?.classList.remove('hidden');
+    elements.setupDivider?.classList.remove('hidden');
+    elements.oauthInitial?.classList.remove('hidden');
+    elements.oauthPending?.classList.add('hidden');
+
     showScreen('setup');
 }
 

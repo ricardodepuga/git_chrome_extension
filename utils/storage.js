@@ -165,6 +165,30 @@ const Storage = {
   async isFavorite(repoId) {
     const favorites = await this.getFavorites();
     return favorites.includes(repoId);
+  },
+
+  /**
+   * Get pending OAuth Device Flow session.
+   * @returns {Promise<Object|null>}
+   */
+  async getPendingOAuth() {
+      const result = await chrome.storage.local.get('pending_oauth');
+      return result.pending_oauth || null;
+  },
+
+  /**
+   * Save a pending OAuth Device Flow session.
+   * @param {Object} session - { deviceCode, userCode, verificationUri, expiresAt, interval }
+   */
+  async savePendingOAuth(session) {
+      await chrome.storage.local.set({ pending_oauth: session });
+  },
+
+  /**
+   * Clear any pending OAuth Device Flow session.
+   */
+  async clearPendingOAuth() {
+      await chrome.storage.local.remove('pending_oauth');
   }
 };
 
