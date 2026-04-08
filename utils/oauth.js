@@ -13,7 +13,7 @@ export const OAuthDeviceFlow = {
             },
             body: JSON.stringify({
                 client_id: clientId,
-                scope: 'repo'
+                scope: 'repo read:org'
             })
         });
 
